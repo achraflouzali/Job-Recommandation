@@ -12,7 +12,7 @@ from openai.embeddings_utils import (
     chart_from_components,
     indices_of_nearest_neighbors_from_distances,
 )
-openai.api_key='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'
+openai.api_key='Put your api key here'
 EMBEDDING_MODEL = "text-embedding-ada-002"
 df=pd.read_csv('data/clean/techmap-jobs-cleaned.csv')
 df=df[:5000]
