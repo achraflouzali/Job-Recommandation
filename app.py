@@ -1,6 +1,5 @@
 import openai
 import uvicorn
-import fastapi
 import pandas as pd
 import numpy as np
 import pickle
@@ -12,10 +11,15 @@ from openai.embeddings_utils import (
     chart_from_components,
     indices_of_nearest_neighbors_from_distances,
 )
-openai.api_key='Put your api key here'
+from fastapi import FastAPI, File, UploadFile, Form, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+import uvicorn
+openai.api_key='put your api key here'
 EMBEDDING_MODEL = "text-embedding-ada-002"
 df=pd.read_csv('data/clean/techmap-jobs-cleaned.csv')
-df=df[:5000]
+df=df[:2000]
 df = df.replace({np.nan: None})
 embedding_cache_path = 'data/embeddings/recommendation_embeddings.pkl'
 
@@ -51,11 +55,10 @@ def print_recommendations_from_strings(
 ) -> list[int]:
     """Print out the k nearest neighbors of a given string."""
     embeddings = [embedding_from_string(string, model=model) for string in df['text'].tolist()]
-    query_embedding = embedding_from_string(query,model=model)
+    query_embedding = get_embedding(query, model=model)
     distances = distances_from_embeddings(query_embedding, embeddings, distance_metric="cosine")
     indices_of_nearest_neighbors = indices_of_nearest_neighbors_from_distances(distances)
     jobs=[]
-    print(f"Source string: {query}")
     k_counter = 0
     for i in indices_of_nearest_neighbors:
         if k_counter >= k_nearest_neighbors:
@@ -76,33 +79,42 @@ def print_recommendations_from_strings(
 
     return jobs
 
-def pdf_to_txt(pdf_path):
+def pdf_to_txt(pdf_file):
     txt=""
-    with open(pdf_path, 'rb') as pdf_file:
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
-        num_pages = len(pdf_reader.pages)
-        for page_num in range(num_pages):
-            page = pdf_reader.pages[page_num]
-            content = page.extract_text()
-            txt+=content
+    pdf_reader = PyPDF2.PdfReader(pdf_file)
+    num_pages = len(pdf_reader.pages)
+    for page_num in range(num_pages):
+        page = pdf_reader.pages[page_num]
+        content = page.extract_text()
+        txt+=content
     txt=txt.replace("\n"," ")        
     return txt
 
-app=fastapi.FastAPI()
+app=FastAPI()
+templates = Jinja2Templates(directory="templates")
+@app.get('/', response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse("recommendation.html", {"request": request})
 
-@app.get('/')
-def index():
-    return {'message':'Hello World'}
 
 
-@app.get('/recommendation')
-def get_recommendation(resume_path:str,letter_path=""):
-    if letter_path=="":
-        query=pdf_to_txt(resume_path)
-    else:
-        query=pdf_to_txt(resume_path)+" "+pdf_to_txt(letter_path)
-    print(query)        
-    return print_recommendations_from_strings(df,query)
+@app.post('/recommendation', response_class=HTMLResponse)
+async def get_recommendation(
+    request: Request,
+    resume: UploadFile = File(...),
+    letter: UploadFile = File(None),
+    
+):
+    # Handle file uploads here
+    resume_text = pdf_to_txt(resume.file)
+    try:
+        letter_text = pdf_to_txt(letter.file)
+        query = resume_text + " " + letter_text
+    except:
+        query = resume_text
+
+    jobs = print_recommendations_from_strings(df, query)
+    return templates.TemplateResponse("recommendation.html", {"request": request, "jobs": jobs})
 
 
 
