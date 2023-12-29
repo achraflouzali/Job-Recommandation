@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+    <title>Job Recommendations</title>
+</head>
+<body>
+    <h1>Upload Your Documents</h1>
+    <form action="/recommendation" method="post" enctype="multipart/form-data">
+        <label for="resume">Upload Your Resume:</label>
+        <input type="file" name="resume" id="resume" accept=".pdf">
+        <br>
+        <label for="letter">Upload Your Cover Letter:</label>
+        <input type="file" name="letter" id="letter" accept=".pdf">
+        <br>
+        <input type="submit" value="Get Recommendations">
+    </form>
+
+    <div class="container">
+        <h1>Job Recommendations</h1>
+        <ul>
+            {% for job in jobs %}
+            <li>
+                <h2><a href="{{ job['Url'] }}" target="_blank">{{ job['Job Title'] }}</a></h2>
+                <p><strong>Location:</strong> {{ job['Located in'] if job['Located in'] is not none else 'Not defined' }}</p>
+                <p><strong>Salary:</strong> {{ job['Salary'] if job['Salary'] is not none else 'Not defined' }}</p>
+                <strong>Description:</strong>
+                <p>{{ job['Job Description'] }}</p>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
